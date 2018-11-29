@@ -41,7 +41,9 @@ class RoverState():
         self.start_time = None # To record the start time of navigation
         self.total_time = None # To record total duration of naviagation
         self.img = None # Current camera image
+        self.last_pos = None # Last position(x, y)
         self.pos = None # Current position (x, y)
+        self.etoll_disp = 5e-6  # meter, minimum distance to consider that the rover is stuck.
         self.yaw = None # Current yaw angle
         self.pitch = None # Current pitch angle
         self.roll = None # Current roll angle
@@ -49,27 +51,42 @@ class RoverState():
         self.steer = 0 # Current steering angle
         self.throttle = 0 # Current throttle value
         self.brake = 0 # Current brake value
-        self.nav_angles = None # Angles of navigable terrain pixels
-        self.nav_dists = None # Distances of navigable terrain pixels
+        self.nav_angles = np.array([]) # Angles of navigable terrain pixels
+        self.nav_dists = np.array([]) # Distances of navigable terrain pixels
+        self.nav_weights = np.array([]) # Weight of each pixel in the navigable terrain
         self.ground_truth = ground_truth_3d # Ground truth worldmap
-        self.mode = 'forward' # Current mode (can be forward or stop)
+        self.mode = 'forward' # Current mode (can be forward, stop, stuck)
         self.throttle_set = 0.2 # Throttle setting when accelerating
+        self.rock_pursuit_set = 0.3  # Throttle setting when looking for a rock.
+        self.reverse_set = -1.0 # Throttle setting when reversing.
         self.brake_set = 10 # Brake setting when braking
+        self.slow_down_set = 1 # brake setting when slowing down.
+        # We use the beams readings to locate the left wall.
+        self.beam_angles = np.linspace(45, 135, 400)
+        self.beam_points = {} # dictionary of currently known beampoints.
+
         # The stop_forward and go_forward fields below represent total count
         # of navigable terrain pixels.  This is a very crude form of knowing
         # when you can keep going and when you should stop.  Feel free to
         # get creative in adding new fields or modifying these!
-        self.stop_forward = 50 # Threshold to initiate stopping
-        self.go_forward = 500 # Threshold to go forward again
-        self.max_vel = 2 # Maximum velocity (meters/second)
-        # Image output from perception step
+        self.stop_forward = 250 # Threshold to initiate stopping in meter
+        self.go_forward = 500 # Threshold to go forward again in meter
+        # self.go_forward_view = 500 # Visual thresold to go forward.
+        self.max_vel = 1.5 # Maximum velocity (meters/second)
+        self.max_pursuit_vel = 0.5 # When chasing a rock, we should not go too fast.
+        self.reverse_vel_set = -0.7 # Target velocity to stop reversing when stuck
+        # Image output from perception step.
         # Update this image to display your intermediate analysis steps
         # on screen in autonomous mode
         self.vision_image = np.zeros((160, 320, 3), dtype=np.float) 
         # Worldmap
         # Update this image with the positions of navigable terrain
         # obstacles and rock samples
-        self.worldmap = np.zeros((200, 200, 3), dtype=np.float) 
+        self.worldmap = np.zeros((200, 200, 3), dtype=np.float)
+        # Each pixel can be flagged as visited to push the Rover toward exploring new areas.
+        self.visited_map = np.zeros((200, 200), dtype=np.bool)
+        # We will use this to reach the sample.
+        self.curr_sample_pos = None
         self.samples_pos = None # To store the actual sample positions
         self.samples_to_find = 0 # To store the initial count of samples
         self.samples_located = 0 # To store number of samples located on map
@@ -77,6 +94,11 @@ class RoverState():
         self.near_sample = 0 # Will be set to telemetry value data["near_sample"]
         self.picking_up = 0 # Will be set to telemetry value data["picking_up"]
         self.send_pickup = False # Set to True to trigger rock pickup
+        self.beam_radius = 50 # maximum distance of the beam points used to find the wall.
+        self.wall_angle = None # Normal vector to the wall.
+        self.wall_dist = None # Average distance to the wall.
+        self.wall_points = np.nan # Average wall point
+
 # Initialize our rover 
 Rover = RoverState()
 
