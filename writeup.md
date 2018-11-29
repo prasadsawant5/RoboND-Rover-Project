@@ -123,8 +123,6 @@ We augmented the Rover with a __visited_map__ attribute. It contains a binary re
 4. Downweight the pixels that have already been visited in the current warped field of vision using __weight_visited(Rover, nav_x_world, nav_y_world)__.
 5. Perform a beam reading using __update_beams_reading(Rover)__ of the 2D point cloud between 45 degrees and 135 degrees up to 5m. This means we got all the obstacles within 5m on our left. Find the average point. Take the normal vector between the vector location (0,0) and this average point. This vector will be a good approximate of the parallel to the wall.
 
-We provide below the code for the 2D point cloud mechanism:
-
 ```Python
 
 def world_to_pix(x_pix_world, y_pix_world, xpos, ypos, yaw, scale):
